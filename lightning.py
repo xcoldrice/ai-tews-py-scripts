@@ -140,8 +140,10 @@ def generate(filename):
 
                 # save_to_database(output)
 
-            print("DONE " + filename)
+            print("Done processing file: " + filename)
             processed_logs.write(filename + "\n")
+        else:
+            print(filename + " Already Processed!.")
 
 
 files = glob.glob(path + radar_name.lower()[0:3] + '*')
