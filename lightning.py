@@ -18,6 +18,8 @@ import math
 
 radar_name = sys.argv[1]
 
+path = '/home/dopplerdat/aitews/'
+
 centers = {
     'Subic' : [120.363697916666667, 14.822096354166666],
     'Tagaytay' : [121.02194544119878, 14.141686134603923]
@@ -114,7 +116,7 @@ def generate(filename):
     with open('processed_logs.text', 'r+') as processed_logs:
         if not filename in processed_logs.read():
             output, thresholds = {}, [.5, .6, .7, .8, .9 , 1.0]
-            file = open('/home/dopplerdat/aitews/' + filename, 'rb')
+            file = open(path + filename, 'rb')
             pickle_file = pickle.load(file)
             data = pickle_file.get('predictions')[0]
             output['datetime'] = datetime.fromtimestamp(int(filename.split('_')[2]) - 600).strftime('%Y-%m-%d %H:%M')
@@ -140,8 +142,15 @@ def generate(filename):
 
             print("DONE " + filename)
             processed_logs.write(filename + "\n")
+
+
+files = glob.glob(path + radar_name.lower()[0:3] + '*')
+latest_file = max(files, key = os.path.getctime)
+
+generate(os.path.basename(latest_file))
+
 # filename = 'sub_predictions_1684575010_1684578010.pkl'
-generate('sub_predictions_1687814410_1687817410.pkl')
+# generate('sub_predictions_1687814410_1687817410.pkl')
 
 # path = "C:/Users/User/Desktop/ai-tews-py-scripts/files"
 # files = os.listdir(path)
