@@ -73,6 +73,7 @@ def get_affected_areas(polygons, shapeType = 'municipality'):
         psgc_code = psgc_code.encode('latin-1').decode('utf-8')[2:]
         name = name.encode('latin-1').decode('utf-8')
 
+
         if not str(shape.geometry) == 'None':
             for pdex in range(len(polygons)):
                 try:
@@ -96,46 +97,56 @@ def get_affected_areas(polygons, shapeType = 'municipality'):
 def create_polygons(points):
     clusters, polygons, scanned = [], [], DBSCAN(eps=.01).fit(points)
 
+
     for label in set(scanned.labels_):
         if label >= 0:
             clusters.append(points[np.where(scanned.labels_ == label)])
 
     for point in range(len(clusters)):
-        polygon = geometry.Polygon(CHull.concaveHull(clusters[point], 25))
-        if polygon.area > .0002:
-            polygons.append(polygon)
+        if len(clusters[point]) > 1:
+            polygon = geometry.Polygon(CHull.concaveHull(clusters[point], 25))
+            if polygon.area > .0002:
+                polygons.append(polygon)
 
     return polygons
 
 def generate(filename):
-    output, thresholds = {}, [.5, .6, .7, .8, .9 , 1.0]
-    file = open(filename, 'rb')
-    pickle_file = pickle.load(file)
-    data = pickle_file.get('predictions')[0]
-    output['datetime'] = datetime.fromtimestamp(int(filename.split('_')[2]) - 600).strftime('%Y-%m-%d %H:%M')
+    with open('processed_logs.text', 'r+') as processed_logs:
+        if not filename in processed_logs.read():
+            output, thresholds = {}, [.5, .6, .7, .8, .9 , 1.0]
+            file = open('files/' + filename, 'rb')
+            pickle_file = pickle.load(file)
+            data = pickle_file.get('predictions')[0]
+            output['datetime'] = datetime.fromtimestamp(int(filename.split('_')[2]) - 600).strftime('%Y-%m-%d %H:%M')
 
-    for threshold in thresholds:
-        output['affected_municipalities'] = []
-        output['affected_barangays'] = []
-        output['polygons'] = []
-        output['threshold'] = threshold
-        for index, cartesian in enumerate(data):
-            cartesian = np.reshape(cartesian, (256, 256))
-            glons, glats = convert_cartesian_to_geographic(cartesian, threshold)
-            valid_points = np.column_stack((glons, glats))
+            for threshold in thresholds:
+                output['affected_municipalities'] = []
+                output['affected_barangays'] = []
+                output['polygons'] = []
+                output['threshold'] = threshold
+                for index, cartesian in enumerate(data):
+                    cartesian = np.reshape(cartesian, (256, 256))
+                    glons, glats = convert_cartesian_to_geographic(cartesian, threshold)
+                    valid_points = np.column_stack((glons, glats))
 
-            if(len(valid_points) > 1):
-                hulls = create_polygons(valid_points)
-                lightning_polygons = [ [np.column_stack((hull.exterior.coords.xy[1], hull.exterior.coords.xy[0])).tolist()] for hull in hulls ]
-                output['polygons'].append(lightning_polygons)
-                output['affected_municipalities'].append(get_affected_areas(hulls))
-                output['affected_barangays'].append(get_affected_areas(hulls, 'barangay'))
+                    if(len(valid_points) > 0):
+                        hulls = create_polygons(valid_points)
+                        lightning_polygons = [ [np.column_stack((hull.exterior.coords.xy[1], hull.exterior.coords.xy[0])).tolist()] for hull in hulls ]
+                        output['polygons'].append(lightning_polygons)
+                        output['affected_municipalities'].append(get_affected_areas(hulls))
+                        output['affected_barangays'].append(get_affected_areas(hulls, 'barangay'))
 
-        save_to_database(output)
+                save_to_database(output)
 
-filename = 'sub_predictions_1684575010_1684578010.pkl'
+            print("DONE " + filename)
+            processed_logs.write(filename + "\n")
+# filename = 'sub_predictions_1684575010_1684578010.pkl'
+# generate('sub_predictions_1687396210_1687399210.pkl')
 
-generate(filename)
+path = "C:/Users/User/Desktop/ai-tews-py-scripts/files"
+files = os.listdir(path)
+for filename in files:
+    generate(filename)
 
 
 
