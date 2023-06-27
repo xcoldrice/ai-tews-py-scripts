@@ -114,7 +114,7 @@ def generate(filename):
     with open('processed_logs.text', 'r+') as processed_logs:
         if not filename in processed_logs.read():
             output, thresholds = {}, [.5, .6, .7, .8, .9 , 1.0]
-            file = open('home/dopplerdat/aitews/' + filename, 'rb')
+            file = open('/home/dopplerdat/aitews/' + filename, 'rb')
             pickle_file = pickle.load(file)
             data = pickle_file.get('predictions')[0]
             output['datetime'] = datetime.fromtimestamp(int(filename.split('_')[2]) - 600).strftime('%Y-%m-%d %H:%M')
