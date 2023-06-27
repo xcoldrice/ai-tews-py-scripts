@@ -15,7 +15,7 @@ import geopandas
 import mysql.connector
 from datetime import datetime
 import math
-
+import glob
 radar_name = sys.argv[1]
 
 path = '/home/dopplerdat/aitews/'
