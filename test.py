@@ -15,7 +15,8 @@ import geopandas
 import mysql.connector
 from datetime import datetime
 import math
-
+import glob
+files = glob.glob('/home/dopplerdat/aitews')
 print('tatek')
 
 
