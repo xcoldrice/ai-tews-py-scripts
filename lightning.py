@@ -136,17 +136,17 @@ def generate(filename):
                         output['affected_municipalities'].append(get_affected_areas(hulls))
                         output['affected_barangays'].append(get_affected_areas(hulls, 'barangay'))
 
-                save_to_database(output)
+                # save_to_database(output)
 
             print("DONE " + filename)
             processed_logs.write(filename + "\n")
 # filename = 'sub_predictions_1684575010_1684578010.pkl'
-# generate('sub_predictions_1687396210_1687399210.pkl')
+generate('sub_predictions_1687814410_1687817410.pkl')
 
-path = "C:/Users/User/Desktop/ai-tews-py-scripts/files"
-files = os.listdir(path)
-for filename in files:
-    generate(filename)
+# path = "C:/Users/User/Desktop/ai-tews-py-scripts/files"
+# files = os.listdir(path)
+# for filename in files:
+#     generate(filename)
 
 
 
