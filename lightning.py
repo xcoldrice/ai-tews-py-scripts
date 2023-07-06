@@ -33,7 +33,7 @@ current_date = datetime.today()
 
 processed_log_file = "/var/ai-tews/" + str(current_date)[0:10].replace('-','_') + "_processed_logs.txt"
 
-if os.path.exists(processed_log_file):
+if not os.path.exists(processed_log_file):
     open(processed_log_file, 'w').close()
 
 def save_to_database(output):
