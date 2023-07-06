@@ -16,6 +16,7 @@ import mysql.connector
 from datetime import datetime
 import math
 import glob
+
 radar_name = sys.argv[1]
 
 path = '/home/dopplerdat/aitews/'
@@ -27,6 +28,13 @@ centers = {
 
 barangays = geopandas.read_file('shapes/Barangays/Barangays.shp')
 municipalities = geopandas.read_file('shapes/Municipalities/Municipalities.shp')
+
+current_date = datetime.today()
+
+processed_log_file = "/var/ai-tews/" + str(current_date)[0:10].replace('-','_') + "_processed_logs.txt"
+
+if os.path.exists(processed_log_file):
+    open(processed_log_file, 'w').close()
 
 def save_to_database(output):
     database = mysql.connector.connect(
@@ -113,7 +121,7 @@ def create_polygons(points):
     return polygons
 
 def generate(filename):
-    with open('processed_logs.text', 'r+') as processed_logs:
+    with open(processed_log_file, 'r+') as processed_logs:
         if not filename in processed_logs.read():
             output, thresholds = {}, [.5, .6, .7, .8, .9 , 1.0]
             file = open(path + filename, 'rb')
