@@ -32,7 +32,7 @@ def save_to_database(output):
     database = mysql.connector.connect(
         host = "localhost",
         user = "root",
-        passwd = "",
+        passwd = "password123",
         database = "ai_tews",
     )
     
@@ -119,7 +119,7 @@ def generate(filename):
             file = open(path + filename, 'rb')
             pickle_file = pickle.load(file)
             data = pickle_file.get('predictions')[0]
-            output['datetime'] = datetime.fromtimestamp(int(filename.split('_')[2]) - 600).strftime('%Y-%m-%d %H:%M')
+            output['datetime'] = datetime.fromtimestamp(int(filename.split('_')[2]) - 600 + 28800).strftime('%Y-%m-%d %H:%M')
 
             for threshold in thresholds:
                 output['affected_municipalities'] = []
@@ -138,7 +138,7 @@ def generate(filename):
                         output['affected_municipalities'].append(get_affected_areas(hulls))
                         output['affected_barangays'].append(get_affected_areas(hulls, 'barangay'))
 
-                # save_to_database(output)
+                save_to_database(output)
 
             print("Done processing file: " + filename)
             processed_logs.write(filename + "\n")
