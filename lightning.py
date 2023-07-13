@@ -13,13 +13,14 @@ from sklearn.cluster import DBSCAN
 from shapely import geometry
 import geopandas
 import mysql.connector
-from datetime import datetime
+from datetime import datetime, timedelta
 import math
 import glob
 
 radar_name = sys.argv[1]
 
-path = '/home/dopplerdat/aitews/'
+files_path = '/home/dopplerdat/aitews/'
+logs_path = '/var/ai-tews/'
 
 centers = {
     'Subic' : [120.363697916666667, 14.822096354166666],
@@ -31,10 +32,30 @@ municipalities = geopandas.read_file('shapes/Municipalities01%/Municipalities.sh
 
 current_date = datetime.today()
 
-processed_log_file = "/var/ai-tews/" + str(current_date)[0:10].replace('-','_') + "_processed_logs.txt"
+processed_log_file = logs_path + str(current_date)[0:10].replace('-','_') + "_processed_logs.txt"
 
 if not os.path.exists(processed_log_file):
     open(processed_log_file, 'w').close()
+
+def is_processed(filename):
+    yesterday = current_date - timedelta(days=1)
+    yesterday_filename = logs_path + str(yesterday)[0:10].replace('-','_') + "_processed_logs.txt"
+
+    if os.path.exists(yesterday_filename):
+        yesterday_logs = open(yesterday_filename, 'r')
+        if filename in yesterday_logs.read():
+            print(filename + 'Already processed yesterday. ' + str(yesterday)[0:10])
+            return True
+    
+    if os.path.exists(processed_log_file):
+        today_logs = open(processed_log_file, 'r')
+        if filename in today_logs.read():
+            print(filename + 'Already processed. ' + str(yesterday)[0:10])
+            return True
+
+    print('Starting Process..')
+    return False
+
 
 def save_to_database(output):
     database = mysql.connector.connect(
@@ -122,43 +143,39 @@ def create_polygons(points):
 
 def generate(filename):
     with open(processed_log_file, 'r+') as processed_logs:
-        if not filename in processed_logs.read():
-            output, thresholds = {}, [.5, .6, .7, .8, .9 , 1.0]
-            file = open(path + filename, 'rb')
-            pickle_file = pickle.load(file)
-            data = pickle_file.get('predictions')[0]
-            output['datetime'] = datetime.fromtimestamp(int(filename.split('_')[2]) - 600 + 28800).strftime('%Y-%m-%d %H:%M')
+        output, thresholds = {}, [.5, .6, .7, .8, .9 , 1.0]
+        file = open(files_path + filename, 'rb')
+        pickle_file = pickle.load(file)
+        data = pickle_file.get('predictions')[0]
+        output['datetime'] = datetime.fromtimestamp(int(filename.split('_')[2]) - 600 + 28800).strftime('%Y-%m-%d %H:%M')
 
-            for threshold in thresholds:
-                output['affected_municipalities'] = []
-                output['affected_barangays'] = []
-                output['polygons'] = []
-                output['threshold'] = threshold
-                for index, cartesian in enumerate(data):
-                    cartesian = np.reshape(cartesian, (256, 256))
-                    glons, glats = convert_cartesian_to_geographic(cartesian, threshold)
-                    valid_points = np.column_stack((glons, glats))
+        for threshold in thresholds:
+            output['affected_municipalities'] = []
+            output['affected_barangays'] = []
+            output['polygons'] = []
+            output['threshold'] = threshold
+            for index, cartesian in enumerate(data):
+                cartesian = np.reshape(cartesian, (256, 256))
+                glons, glats = convert_cartesian_to_geographic(cartesian, threshold)
+                valid_points = np.column_stack((glons, glats))
 
-                    if(len(valid_points) > 0):
-                        hulls = create_polygons(valid_points)
-                        lightning_polygons = [ [np.column_stack((hull.exterior.coords.xy[1], hull.exterior.coords.xy[0])).tolist()] for hull in hulls ]
-                        output['polygons'].append(lightning_polygons)
-                        output['affected_municipalities'].append(get_affected_areas(hulls))
-                        output['affected_barangays'].append(get_affected_areas(hulls, 'barangay'))
+                if(len(valid_points) > 0):
+                    hulls = create_polygons(valid_points)
+                    lightning_polygons = [ [np.column_stack((hull.exterior.coords.xy[1], hull.exterior.coords.xy[0])).tolist()] for hull in hulls ]
+                    output['polygons'].append(lightning_polygons)
+                    output['affected_municipalities'].append(get_affected_areas(hulls))
+                    output['affected_barangays'].append(get_affected_areas(hulls, 'barangay'))
 
-                save_to_database(output)
+            save_to_database(output)
 
-            print("Done processing file: " + filename)
-            processed_logs.write(filename + "\n")
-        else:
-            print(filename + " Already Processed!.")
+        print("Done processing file: " + filename)
+        processed_logs.write(filename + "\n")
 
-
-files = glob.glob(path + radar_name.lower()[0:3] + '*')
+files = glob.glob(files_path + radar_name.lower()[0:3] + '*')
 latest_file = max(files, key = os.path.getctime)
 
-generate(os.path.basename(latest_file))
-
+if not is_processed(os.path.basename(latest_file)):
+    generate(os.path.basename(latest_file))
 # filename = 'sub_predictions_1684575010_1684578010.pkl'
 # generate('sub_predictions_1687814410_1687817410.pkl')
 

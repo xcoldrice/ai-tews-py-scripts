@@ -13,7 +13,7 @@ from sklearn.cluster import DBSCAN
 from shapely import geometry
 import geopandas
 import mysql.connector
-from datetime import datetime
+from datetime import datetime, timedelta
 import math
 import glob
 
@@ -54,7 +54,24 @@ def save_to_database(output):
     cursor.close()
     database.close()
 
+def is_processed(filename):
+    today = datetime.today()
+    yesterday = today - timedelta(days=1)
 
+    yesterday_filename = ""+ str(yesterday)[0:10].replace('-','_') + "_processed_logs.txt"
+    today_filename = ""+ str(today)[0:10].replace('-','_') + "_processed_logs.txt"
+
+    if os.path.exists(yesterday_filename):
+        yesterday_logs = open(yesterday_filename, 'r')
+        if filename in yesterday_logs.read():
+            return True
+    
+    if os.path.exists(today_filename):
+        today_logs = open(today_filename, 'r')
+        if filename in today_logs.read():
+            return True
+
+    return False
 
 def convert_cartesian_to_geographic(cartesian, threshold):
     proj_params = {
@@ -123,36 +140,33 @@ def create_polygons(points):
 
 def generate(filename):
     with open(processed_log_file, 'r+') as processed_logs:
-        if not filename in processed_logs.read():
-            output, thresholds = {}, [.5, .6, .7, .8, .9 , 1.0]
-            file = open(path + filename, 'rb')
-            pickle_file = pickle.load(file)
-            data = pickle_file.get('predictions')[0]
-            output['datetime'] = datetime.fromtimestamp(int(filename.split('_')[2]) - 600 + 28800).strftime('%Y-%m-%d %H:%M')
+        output, thresholds = {}, [.5, .6, .7, .8, .9 , 1.0]
+        file = open(path + filename, 'rb')
+        pickle_file = pickle.load(file)
+        data = pickle_file.get('predictions')[0]
+        output['datetime'] = datetime.fromtimestamp(int(filename.split('_')[2]) - 600 + 28800).strftime('%Y-%m-%d %H:%M')
 
-            for threshold in thresholds:
-                output['affected_municipalities'] = []
-                output['affected_barangays'] = []
-                output['polygons'] = []
-                output['threshold'] = threshold
-                for index, cartesian in enumerate(data):
-                    cartesian = np.reshape(cartesian, (256, 256))
-                    glons, glats = convert_cartesian_to_geographic(cartesian, threshold)
-                    valid_points = np.column_stack((glons, glats))
+        for threshold in thresholds:
+            output['affected_municipalities'] = []
+            output['affected_barangays'] = []
+            output['polygons'] = []
+            output['threshold'] = threshold
+            for index, cartesian in enumerate(data):
+                cartesian = np.reshape(cartesian, (256, 256))
+                glons, glats = convert_cartesian_to_geographic(cartesian, threshold)
+                valid_points = np.column_stack((glons, glats))
 
-                    if(len(valid_points) > 0):
-                        hulls = create_polygons(valid_points)
-                        lightning_polygons = [ [np.column_stack((hull.exterior.coords.xy[1], hull.exterior.coords.xy[0])).tolist()] for hull in hulls ]
-                        output['polygons'].append(lightning_polygons)
-                        output['affected_municipalities'].append(get_affected_areas(hulls))
-                        output['affected_barangays'].append(get_affected_areas(hulls, 'barangay'))
+                if(len(valid_points) > 0):
+                    hulls = create_polygons(valid_points)
+                    lightning_polygons = [ [np.column_stack((hull.exterior.coords.xy[1], hull.exterior.coords.xy[0])).tolist()] for hull in hulls ]
+                    output['polygons'].append(lightning_polygons)
+                    output['affected_municipalities'].append(get_affected_areas(hulls))
+                    output['affected_barangays'].append(get_affected_areas(hulls, 'barangay'))
 
-                save_to_database(output)
+            save_to_database(output)
 
-            print("Done processing file: " + filename)
-            processed_logs.write(filename + "\n")
-        else:
-            print(filename + " Already Processed!.")
+        print("Done processing file: " + filename)
+        processed_logs.write(filename + "\n")
 
 
 files = glob.glob(path + radar_name.lower()[0:3] + '*')
@@ -160,7 +174,10 @@ latest_file = max(files, key = os.path.getctime)
 
 # generate(os.path.basename(latest_file))
 
-generate('sub_predictions_1689122410_1689125410.pkl')
+
+if not is_processed('sub_predictions_1689122410_1689125410.pkl'):
+    generate('sub_predictions_1689122410_1689125410.pkl')
+
 
 # filename = 'sub_predictions_1684575010_1684578010.pkl'
 # generate('sub_predictions_1687814410_1687817410.pkl')
