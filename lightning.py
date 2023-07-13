@@ -26,8 +26,8 @@ centers = {
     'Tagaytay' : [121.02194544119878, 14.141686134603923]
 }
 
-barangays = geopandas.read_file('shapes/Barangays/Barangays.shp')
-municipalities = geopandas.read_file('shapes/Municipalities/Municipalities.shp')
+barangays = geopandas.read_file('shapes/Barangays01%/Barangays.shp')
+municipalities = geopandas.read_file('shapes/Municipalities01%/Municipalities.shp')
 
 current_date = datetime.today()
 
