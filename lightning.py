@@ -44,13 +44,13 @@ def is_processed(filename):
     if os.path.exists(yesterday_filename):
         yesterday_logs = open(yesterday_filename, 'r')
         if filename in yesterday_logs.read():
-            print(filename + 'Already processed yesterday. ' + str(yesterday)[0:10])
+            print(filename + ' Already processed yesterday. ' + str(yesterday)[0:10])
             return True
     
     if os.path.exists(processed_log_file):
         today_logs = open(processed_log_file, 'r')
         if filename in today_logs.read():
-            print(filename + 'Already processed. ' + str(yesterday)[0:10])
+            print(filename + ' Already processed. ' + str(current_date)[0:10])
             return True
 
     print('Starting Process..')
