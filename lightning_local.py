@@ -14,16 +14,18 @@ from shapely import geometry
 import geopandas
 import mysql.connector
 from datetime import datetime, timedelta
+import time
 import math
 import glob
 
 radar_name = sys.argv[1]
 
-path = ''
+files_path = ''
+logs_path = ''
 
 centers = {
     'Subic' : [120.363697916666667, 14.822096354166666],
-    'Tagaytay' : [121.02194544119878, 14.141686134603923]
+    'Tagaytay' : [121.02221788194444, 14.142131076388889]
 }
 
 barangays = geopandas.read_file('shapes/Barangays01%/Barangays.shp')
@@ -31,16 +33,57 @@ municipalities = geopandas.read_file('shapes/Municipalities01%/Municipalities.sh
 
 current_date = datetime.today()
 
-processed_log_file = "" + str(current_date)[0:10].replace('-','_') + "_processed_logs.txt"
+processed_log_file = logs_path + radar_name.lower()[0:3] +"_processed_logs_" + str(current_date)[0:10].replace('-','_') + ".txt"
 
 if not os.path.exists(processed_log_file):
     open(processed_log_file, 'w').close()
+
+def log_message(type, filename):
+    message = ""
+    if type == 'done':
+        message = 'Already processed!.'
+    elif type == 'new':
+        message = 'Not yet processed.'
+    elif type == 'start':
+        tmp_file = open(processed_log_file, 'a')
+        tmp_file.write("start_" + filename + '\n')
+        tmp_file.close()
+        message = 'Starting Process.'
+    elif type == 'finish':
+        message = 'Done Process.'
+    elif type == 'processing':
+        message = 'Already Processing.'
+
+    print("===========================================================")
+    print("File: " + filename)
+    print(message)
+    print("===========================================================")
+
+def is_processed(filename):
+    start_filename = "start_" + filename
+    done_filename = "done_" + filename
+
+    log_files = glob.glob(logs_path + radar_name.lower()[0:3] + "_processed_logs_" + '*')
+    if len(log_files) > 0:
+        for log_file in log_files:
+            with open(log_file, 'r') as logs:
+                lines = [ line.strip() for line in logs.readlines()]
+                if  start_filename in lines:
+                    if done_filename in lines:
+                        log_message('done', filename)
+                    else:
+                        log_message('processing', filename)
+                    
+                    return True
+
+    log_message('new', filename)
+    return False
 
 def save_to_database(output):
     database = mysql.connector.connect(
         host = "localhost",
         user = "root",
-        passwd = "",
+        passwd = "password123",
         database = "ai_tews",
     )
     
@@ -54,24 +97,7 @@ def save_to_database(output):
     cursor.close()
     database.close()
 
-def is_processed(filename):
-    today = datetime.today()
-    yesterday = today - timedelta(days=1)
 
-    yesterday_filename = ""+ str(yesterday)[0:10].replace('-','_') + "_processed_logs.txt"
-    today_filename = ""+ str(today)[0:10].replace('-','_') + "_processed_logs.txt"
-
-    if os.path.exists(yesterday_filename):
-        yesterday_logs = open(yesterday_filename, 'r')
-        if filename in yesterday_logs.read():
-            return True
-    
-    if os.path.exists(today_filename):
-        today_logs = open(today_filename, 'r')
-        if filename in today_logs.read():
-            return True
-
-    return False
 
 def convert_cartesian_to_geographic(cartesian, threshold):
     proj_params = {
@@ -108,7 +134,6 @@ def get_affected_areas(polygons, shapeType = 'municipality'):
                     if shape.geometry.intersects(polygon):
                         area_counter = area_counter + shape.geometry.intersection(polygon).area   
                 except:
-                    print(shape)
                     print('error in polygon')
         
         
@@ -125,7 +150,6 @@ def get_affected_areas(polygons, shapeType = 'municipality'):
 def create_polygons(points):
     clusters, polygons, scanned = [], [], DBSCAN(eps=.01).fit(points)
 
-
     for label in set(scanned.labels_):
         if label >= 0:
             clusters.append(points[np.where(scanned.labels_ == label)])
@@ -139,9 +163,11 @@ def create_polygons(points):
     return polygons
 
 def generate(filename):
-    with open(processed_log_file, 'r+') as processed_logs:
+    start_time = time.time()
+    log_message('start', filename)
+    with open(processed_log_file, 'a') as processed_logs:
         output, thresholds = {}, [.5, .6, .7, .8, .9 , 1.0]
-        file = open(path + filename, 'rb')
+        file = open(files_path + filename, 'rb')
         pickle_file = pickle.load(file)
         data = pickle_file.get('predictions')[0]
         output['datetime'] = datetime.fromtimestamp(int(filename.split('_')[2]) - 600 + 28800).strftime('%Y-%m-%d %H:%M')
@@ -165,27 +191,20 @@ def generate(filename):
 
             save_to_database(output)
 
-        print("Done processing file: " + filename)
-        processed_logs.write(filename + "\n")
+        log_message('finish', filename)
+        processed_logs.write("done_"+filename + "\n")
+        end_time = time.time()
+        print("Execution Time: " + str(math.ceil((end_time - start_time) / 60)) + " minutes")
 
+files = glob.glob(files_path + radar_name.lower()[0:3] + '_predictions_*')
+if len(files) > 0:
+    latest_file = max(files, key = os.path.getctime)
 
-files = glob.glob(path + radar_name.lower()[0:3] + '*')
-latest_file = max(files, key = os.path.getctime)
+    if not is_processed(os.path.basename(latest_file)):
+        generate(os.path.basename(latest_file))
+else:
+    print("No Prediction Files for " + radar_name)
 
-# generate(os.path.basename(latest_file))
-
-
-if not is_processed('sub_predictions_1689122410_1689125410.pkl'):
-    generate('sub_predictions_1689122410_1689125410.pkl')
-
-
-# filename = 'sub_predictions_1684575010_1684578010.pkl'
-# generate('sub_predictions_1687814410_1687817410.pkl')
-
-# path = "C:/Users/User/Desktop/ai-tews-py-scripts/files"
-# files = os.listdir(path)
-# for filename in files:
-#     generate(filename)
 
 
 

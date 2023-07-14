@@ -14,6 +14,7 @@ from shapely import geometry
 import geopandas
 import mysql.connector
 from datetime import datetime, timedelta
+import time
 import math
 import glob
 
@@ -24,7 +25,7 @@ logs_path = '/var/ai-tews/'
 
 centers = {
     'Subic' : [120.363697916666667, 14.822096354166666],
-    'Tagaytay' : [121.02194544119878, 14.141686134603923]
+    'Tagaytay' : [121.02221788194444, 14.142131076388889]
 }
 
 barangays = geopandas.read_file('shapes/Barangays01%/Barangays.shp')
@@ -32,28 +33,50 @@ municipalities = geopandas.read_file('shapes/Municipalities01%/Municipalities.sh
 
 current_date = datetime.today()
 
-processed_log_file = logs_path + str(current_date)[0:10].replace('-','_') + "_processed_logs.txt"
+processed_log_file = logs_path + radar_name.lower()[0:3] +"_processed_logs_" + str(current_date)[0:10].replace('-','_') + ".txt"
 
 if not os.path.exists(processed_log_file):
     open(processed_log_file, 'w').close()
 
+def log_message(type, filename):
+    message = ""
+    if type == 'done':
+        message = 'Already processed!.'
+    elif type == 'new':
+        message = 'Not yet processed.'
+    elif type == 'start':
+        tmp_file = open(processed_log_file, 'a')
+        tmp_file.write("start_" + filename + '\n')
+        tmp_file.close()
+        message = 'Starting Process.'
+    elif type == 'finish':
+        message = 'Done Process.'
+    elif type == 'processing':
+        message = 'Already Processing.'
+
+    print("===========================================================")
+    print("File: " + filename)
+    print(message)
+    print("===========================================================")
+
 def is_processed(filename):
-    yesterday = current_date - timedelta(days=1)
-    yesterday_filename = logs_path + str(yesterday)[0:10].replace('-','_') + "_processed_logs.txt"
+    start_filename = "start_" + filename
+    done_filename = "done_" + filename
 
-    if os.path.exists(yesterday_filename):
-        yesterday_logs = open(yesterday_filename, 'r')
-        if filename in yesterday_logs.read():
-            print(filename + ' Already processed yesterday. ' + str(yesterday)[0:10])
-            return True
-    
-    if os.path.exists(processed_log_file):
-        today_logs = open(processed_log_file, 'r')
-        if filename in today_logs.read():
-            print(filename + ' Already processed. ' + str(current_date)[0:10])
-            return True
+    log_files = glob.glob(logs_path + radar_name.lower()[0:3] + "_processed_logs_" + '*')
+    if len(log_files) > 0:
+        for log_file in log_files:
+            with open(log_file, 'r') as logs:
+                lines = [ line.strip() for line in logs.readlines()]
+                if  start_filename in lines:
+                    if done_filename in lines:
+                        log_message('done', filename)
+                    else:
+                        log_message('processing', filename)
+                    
+                    return True
 
-    print('Starting Process..')
+    log_message('new', filename)
     return False
 
 
@@ -128,7 +151,6 @@ def get_affected_areas(polygons, shapeType = 'municipality'):
 def create_polygons(points):
     clusters, polygons, scanned = [], [], DBSCAN(eps=.01).fit(points)
 
-
     for label in set(scanned.labels_):
         if label >= 0:
             clusters.append(points[np.where(scanned.labels_ == label)])
@@ -142,7 +164,9 @@ def create_polygons(points):
     return polygons
 
 def generate(filename):
-    with open(processed_log_file, 'r+') as processed_logs:
+    start_time = time.time()
+    log_message('start', filename)
+    with open(processed_log_file, 'a') as processed_logs:
         output, thresholds = {}, [.5, .6, .7, .8, .9 , 1.0]
         file = open(files_path + filename, 'rb')
         pickle_file = pickle.load(file)
@@ -168,21 +192,22 @@ def generate(filename):
 
             save_to_database(output)
 
-        print("Done processing file: " + filename)
-        processed_logs.write(filename + "\n")
+        log_message('finish', filename)
+        processed_logs.write("done_"+filename + "\n")
+        end_time = time.time()
+        print("Execution Time: " + str(math.ceil((end_time - start_time) / 60)) + " minutes")
 
-files = glob.glob(files_path + radar_name.lower()[0:3] + '*')
-latest_file = max(files, key = os.path.getctime)
+files = glob.glob(files_path + radar_name.lower()[0:3] + '_predictions_*')
 
-if not is_processed(os.path.basename(latest_file)):
-    generate(os.path.basename(latest_file))
-# filename = 'sub_predictions_1684575010_1684578010.pkl'
-# generate('sub_predictions_1687814410_1687817410.pkl')
+files = glob.glob(files_path + radar_name.lower()[0:3] + '_predictions_*')
+if len(files) > 0:
+    latest_file = max(files, key = os.path.getctime)
 
-# path = "C:/Users/User/Desktop/ai-tews-py-scripts/files"
-# files = os.listdir(path)
-# for filename in files:
-#     generate(filename)
+    if not is_processed(os.path.basename(latest_file)):
+        generate(os.path.basename(latest_file))
+else:
+    print("No Prediction Files for " + radar_name)
+
 
 
 
