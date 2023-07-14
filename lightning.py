@@ -23,6 +23,10 @@ radar_name = sys.argv[1]
 files_path = '/home/dopplerdat/aitews/'
 logs_path = '/var/ai-tews/'
 
+if radar_name == 'Tagaytay':
+    files_path '/home/dopplerdat/aitews/tagaytay_data/'
+
+
 centers = {
     'Subic' : [120.363697916666667, 14.822096354166666],
     'Tagaytay' : [121.02221788194444, 14.142131076388889]
