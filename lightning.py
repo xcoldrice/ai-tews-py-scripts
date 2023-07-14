@@ -24,7 +24,7 @@ files_path = '/home/dopplerdat/aitews/'
 logs_path = '/var/ai-tews/'
 
 if radar_name == 'Tagaytay':
-    files_path '/home/dopplerdat/aitews/tagaytay_data/'
+    files_path = '/home/dopplerdat/aitews/tagaytay_data/'
 
 
 centers = {
