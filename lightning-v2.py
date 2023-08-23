@@ -194,18 +194,25 @@ def generate(filename):
             output['prediction_municipalities'] = []
             output['prediction_barangays'] = []
             
-            if threshold == 1.0:
-                for o_x, o_cart in enumerate(occurrence):
-                    o_cart = np.reshape(o_cart, (256, 256))
-                    o_lons, o_lats = convert_cartesian_to_geographic(o_cart, threshold)
-                    o_points = np.column_stack((o_lons, o_lats))
 
-                    if len(o_points) > 0:
-                        o_hulls = create_polygons(o_points)
-                        o_polygons = [ [np.column_stack((o_hull.exterior.coords.xy[1], o_hull.exterior.coords.xy[0])).tolist()] for o_hull in o_hulls ]         
-                        output['occurrence_polygons'].append(o_polygons)
-                        output['occurrence_municipalities'].append(get_areas(o_hulls))
-                        output['occurrence_barangays'].append(get_areas(o_hulls, 'barangays'))
+
+
+            for o_x, o_cart in enumerate(occurrence):
+                o_cart = np.reshape(o_cart, (256, 256))
+                o_lons, o_lats = convert_cartesian_to_geographic(o_cart, threshold)
+                o_points = np.column_stack((o_lons, o_lats))
+
+                if threshold == 1.0 and len(o_points) > 0:
+                    o_hulls = create_polygons(o_points)
+                    o_polygons = [ [np.column_stack((o_hull.exterior.coords.xy[1], o_hull.exterior.coords.xy[0])).tolist()] for o_hull in o_hulls ]         
+                    output['occurrence_polygons'].append(o_polygons)
+                    output['occurrence_municipalities'].append(get_areas(o_hulls))
+                    output['occurrence_barangays'].append(get_areas(o_hulls, 'barangays'))
+                else:
+                    output['occurrence_polygons'].append([])
+                    output['occurrence_municipalities'].append([])
+                    output['occurrence_barangays'].append([])
+
 
             for p_x, p_cart in enumerate(predictions):
                 p_cart = np.reshape(p_cart, (256, 256))
@@ -218,6 +225,10 @@ def generate(filename):
                     output['prediction_polygons'].append(p_polygons)
                     output['prediction_municipalities'].append(get_areas(p_hulls))
                     output['prediction_barangays'].append(get_areas(p_hulls, 'barangays'))
+                else:
+                    output['prediction_polygons'].append([])
+                    output['prediction_municipalities'].append([])
+                    output['prediction_barangays'].append([])
 
 
             save_to_database(output)
