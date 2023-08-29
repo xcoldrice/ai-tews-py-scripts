@@ -48,14 +48,15 @@ def shape_to_csv(shapes, headers, filename):
                 ])
 
     print('done')
-    
-# muni_shapes = geopandas.read_file('shapes/Municipalities01%/Municipalities.shp')
-# muni_headers = ['id', 'region', 'province', 'municipality', 'psgc_code', 'polygon']
-# shape_to_csv(muni_shapes, muni_headers, 'municipality_shapes.csv')
 
-# prov_shapes = geopandas.read_file('shapes/Provinces01%/Provinces.shp')
-# prov_headers = ['id', 'region', 'province', 'psgc_code', 'polygon']
-# shape_to_csv(prov_shapes, prov_headers, 'province_shapes.csv')
+#change path of files for conversion
+muni_shapes = geopandas.read_file('shapes/RWS_Municipalities/Municipalities.shp')
+muni_headers = ['id', 'region', 'province', 'municipality', 'psgc_code', 'polygon']
+shape_to_csv(muni_shapes, muni_headers, 'municipality_shapes.csv')
+
+prov_shapes = geopandas.read_file('shapes/RWS_Provinces/Provinces.shp')
+prov_headers = ['id', 'region', 'province', 'psgc_code', 'polygon']
+shape_to_csv(prov_shapes, prov_headers, 'province_shapes.csv')
 
 brgy_shapes = geopandas.read_file('shapes/Barangays01%/Barangays.shp')
 brgy_headers = ['id', 'region', 'province', 'municipality', 'barangay', 'psgc_code', 'polygon']

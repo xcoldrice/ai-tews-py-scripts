@@ -32,7 +32,7 @@ centers = {
 }
 
 barangays = geopandas.read_file('shapes/Barangays01%/Barangays.shp')
-municipalities = geopandas.read_file('shapes/Municipalities01%/Municipalities.shp')
+municipalities = geopandas.read_file('shapes/RWS_Municipalities/Municipalities.shp')
 
 current_date = datetime.today()
 
